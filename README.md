@@ -11,21 +11,31 @@ Rich Presence. Runs entirely inside Ableton — no separate app to keep running.
 3. In the same application, go to **Rich Presence → Art Assets**, upload a
    square PNG (512×512+) of the Ableton Live logo, and set its asset key to
    `ableton_logo`. Save. (Can take a few minutes to propagate.)
-4. Open `Ableton Discord Presence/presence.py` in this folder and replace
+4. Open `AbletonDiscordPresence/presence.py` in this folder and replace
    `DISCORD_CLIENT_ID = 'REPLACE_WITH_YOUR_DISCORD_CLIENT_ID'` with the
    Application ID from step 2.
 
 ## Install
 
-1. Copy the entire `Ableton Discord Presence` folder into Ableton Live's
+1. Copy the entire `AbletonDiscordPresence` folder into Ableton Live's
    User Library Remote Scripts directory:
    `%USERPROFILE%\Documents\Ableton\User Library\Remote Scripts\`
-   (create the `Remote Scripts` folder if it doesn't exist yet).
+   (create the `Remote Scripts` folder if it doesn't exist yet — note: if
+   your Documents folder is redirected by OneDrive, use the actual target
+   of that redirection, e.g. `...\OneDrive\Documents\Ableton\...`).
 2. Restart Ableton Live.
 3. Open Preferences → Link, Tempo & MIDI → in the Control Surface dropdown
-   (any empty slot), select "Ableton Discord Presence".
+   (any empty slot), select "AbletonDiscordPresence".
 4. Open or save a project. Your Discord profile should show the project
    name, BPM, and an elapsed-time counter within a few seconds.
+
+**Why the folder name matters:** Ableton Live loads a Remote Script by
+running `import <folder name>` internally — the folder name must be a
+valid Python identifier. A name with spaces (e.g. the previous
+`Ableton Discord Presence`) causes Live to fail with
+`SyntaxError: invalid syntax` in `Log.txt` (Help menu → Show Log File),
+and the control surface silently does nothing when selected. Always use
+a space-free folder name like `AbletonDiscordPresence`.
 
 ## Notes
 
