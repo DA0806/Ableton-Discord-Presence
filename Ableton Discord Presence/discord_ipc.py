@@ -86,6 +86,7 @@ class DiscordIPC(object):
         self._close_pipe()
 
     def close(self):
+        self.connected = False
         self._close_pipe()
 
     def _send(self, payload):
