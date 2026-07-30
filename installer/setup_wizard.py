@@ -29,20 +29,30 @@ def _bundled_source_dir():
     return os.path.join(base, 'AbletonDiscordPresence')
 
 
+def _assets_dir():
+    """Path to the icon/banner assets — inside the PyInstaller onefile
+    bundle when frozen, next to this script otherwise (same pattern as
+    _bundled_source_dir())."""
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, 'assets')
+
+
 class Wizard(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.title('Ableton Discord Presence Setup')
-        self.geometry('460x300')
+        self.geometry('460x372')
         self.resizable(False, False)
         self.configure(bg=BG)
 
         self._init_style()
+        self.iconbitmap(os.path.join(_assets_dir(), 'icon.ico'))
 
         self.dest_path = tk.StringVar(value=get_remote_scripts_path())
         self.open_tutorial = tk.BooleanVar(value=True)
 
-        tk.Frame(self, bg=ACCENT, height=4).pack(fill='x')
+        self._banner_img = tk.PhotoImage(file=os.path.join(_assets_dir(), 'banner.png'))
+        tk.Label(self, image=self._banner_img, bg=BG, bd=0).pack(fill='x')
 
         self.body = tk.Frame(self, bg=BG)
         self.body.pack(fill='both', expand=True, padx=24, pady=20)
