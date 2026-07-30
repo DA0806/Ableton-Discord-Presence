@@ -905,3 +905,82 @@ Syntax check: `python -c "import ast; ast.parse(open('installer/setup_wizard.py'
 git add installer/setup_wizard.py
 git commit -m "Redesign setup wizard: dark theme, collapse to 2 screens"
 ```
+
+---
+
+### Task 10: Wire the icon + banner into the wizard and the build
+
+**Added after user feedback**: the wizard used tkinter's default window/taskbar icon (a feather) and PyInstaller's default `.exe` icon (a floppy disk), which look unpolished. The user asked for a proper icon and a banner image, but wanted to avoid using Ableton's or Discord's actual logos (trademark risk, especially a merged/derivative mark, which is the single most takedown-prone kind of unauthorized logo use). Resolved with an original abstract mark instead: EQ-style ascending bars inside a speech-bubble outline, in the wizard's own palette — evokes "audio app talking to chat app" without touching either company's marks. Assets already generated and committed at `installer/assets/icon.ico` (multi-resolution: 16/32/48/256) and `installer/assets/banner.png` (460×72, matches the window's fixed width) — this task only wires them in, it does not generate them.
+
+**Files:**
+- Modify: `installer/setup_wizard.py` (add icon + banner loading in `__init__`, replace the old 4px accent-stripe `Frame` with the banner `Label`, adjust window height for the taller banner)
+- Modify: `installer/build.bat` (add `--icon` and a second `--add-data` for the `assets/` folder)
+
+**Interfaces:** No change to any function signature from Tasks 3/9 — `wizard_logic.py`'s interface is untouched, and `_bundled_source_dir()` is untouched. This task adds one new helper, `_assets_dir()`, following the exact same frozen/unfrozen pattern as `_bundled_source_dir()`.
+
+- [ ] **Step 1: Update `installer/setup_wizard.py`**
+
+Add this new function right after `_bundled_source_dir()`:
+
+```python
+def _assets_dir():
+    """Path to the icon/banner assets — inside the PyInstaller onefile
+    bundle when frozen, next to this script otherwise (same pattern as
+    _bundled_source_dir())."""
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, 'assets')
+```
+
+Replace the `__init__` method with:
+
+```python
+    def __init__(self):
+        tk.Tk.__init__(self)
+        self.title('Ableton Discord Presence Setup')
+        self.geometry('460x372')
+        self.resizable(False, False)
+        self.configure(bg=BG)
+
+        self._init_style()
+        self.iconbitmap(os.path.join(_assets_dir(), 'icon.ico'))
+
+        self.dest_path = tk.StringVar(value=get_remote_scripts_path())
+        self.open_tutorial = tk.BooleanVar(value=True)
+
+        self._banner_img = tk.PhotoImage(file=os.path.join(_assets_dir(), 'banner.png'))
+        tk.Label(self, image=self._banner_img, bg=BG, bd=0).pack(fill='x')
+
+        self.body = tk.Frame(self, bg=BG)
+        self.body.pack(fill='both', expand=True, padx=24, pady=20)
+
+        self._render_setup()
+```
+
+(This removes the old `tk.Frame(self, bg=ACCENT, height=4).pack(fill='x')` accent-stripe line — the banner image supersedes it as the window's signature visual element, so keeping both would be redundant decoration. `self._banner_img` MUST be kept as an instance attribute, not a local variable — tkinter `PhotoImage` objects are garbage-collected the moment nothing references them, and an unreferenced banner image renders as a blank rectangle.)
+
+Everything else in the file (`_init_style`, `_clear_body`, `_render_setup`, `_update_action_label`, `_browse`, `_install`, `_render_done`, `_finish`, the module docstring, imports, color constants, `_bundled_source_dir()`, and the `if __name__ == '__main__':` block) stays exactly as Task 9 left it.
+
+- [ ] **Step 2: Update `installer/build.bat`**
+
+Replace its contents with:
+
+```bat
+@echo off
+cd /d "%~dp0"
+pyinstaller --onefile --windowed --name AbletonDiscordPresenceSetup ^
+    --icon "assets\icon.ico" ^
+    --add-data "..\AbletonDiscordPresence;AbletonDiscordPresence" ^
+    --add-data "assets;assets" ^
+    setup_wizard.py
+```
+
+- [ ] **Step 3: Verification (same constraints as Tasks 4/9 — no interactive display-driving tool available)**
+
+Syntax check both changed files. Import smoke-check `setup_wizard.py` from `installer/` — this DOES now execute `_assets_dir()` and the module-level constants, but the `PhotoImage`/`iconbitmap` calls only run inside `Wizard.__init__`, which only runs under `if __name__ == '__main__':`, so a plain `import setup_wizard` still doesn't touch them and stays a safe smoke-check. Confirm `installer/assets/icon.ico` and `installer/assets/banner.png` exist on disk at the paths `_assets_dir()` will resolve to when unfrozen (`installer/assets/`, since the script lives at `installer/setup_wizard.py`). Rebuild via `installer\build.bat` and confirm the produced `.exe` file's own icon (as shown in Windows Explorer) is the new mark, not PyInstaller's default. Real interactive/visual verification (does the banner render without distortion, does the taskbar icon show correctly) is deferred to a human, same as Tasks 4/8/9.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add installer/setup_wizard.py installer/build.bat
+git commit -m "Add custom icon and banner to the setup wizard"
+```
