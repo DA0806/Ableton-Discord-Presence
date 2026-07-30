@@ -1,0 +1,6 @@
+installer/build/
+installer/dist/
+installer/*.spec
+installer/AbletonDiscordPresence/
+__pycache__/
+*.pyc
