@@ -13,7 +13,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from wizard_logic import get_remote_scripts_path, install, is_existing_install
 
-TUTORIAL_URL = 'https://github.com/DA0806/Ableton-Discord-Presence/blob/master/docs/tutorial.md'
+TUTORIAL_URL = 'https://github.com/DA0806/Ableton-Discord-Presence/blob/main/docs/tutorial.md'
 
 BG = '#2a2a2a'
 SURFACE = '#363636'
