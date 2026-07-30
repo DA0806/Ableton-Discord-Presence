@@ -736,3 +736,172 @@ Open the same script on a Live <12 install (or temporarily monkey-patch `hasattr
 - [ ] **Step 5: Update memory**
 
 Save an engram observation (type `decision` or `discovery`) summarizing anything that differed from the design doc during implementation (e.g., if the OneDrive detection needed adjustment on your actual machine, or the wizard needed a layout tweak) — future sessions should know if reality diverged from the plan.
+
+---
+
+### Task 9: Redesign `setup_wizard.py` — dark theme, 2-screen flow
+
+**Added after Task 8's manual verification**, which passed functionally but surfaced UX feedback: the 4-page Next/Back/Finish flow felt like more clicking than the wizard's one real decision (install location) warranted, and the stock light Tk chrome looks out of place next to Ableton Live and Discord, which this tool's users run in dark mode all day. Approved design: collapse Welcome+Location+Install into a single "Setup" screen (detected path shown as a read-only monospace readout + "Change..." link + one primary button whose label is "Install" or "Update" depending on `is_existing_install()`), and collapse the old Finish page into a single "Done" screen reached only after a successful install. No Back button — the two screens are a linear success path, not a multi-step form. Dark palette: background `#1E1E1E`, panel `#2B2B2B`, text `#E8E6E3`, muted text `#9A9A9A`, accent `#FF5500` (used only on the primary button and the success checkmark). Fonts: Segoe UI Semibold for headers, Segoe UI for body/muted text, Consolas for the path readout — all stdlib-available Windows system fonts, no new dependencies. A 4px accent-colored stripe across the top of the window is the one signature visual flourish.
+
+**Files:**
+- Modify: `installer/setup_wizard.py` (whole file — replaces Task 4's 4-page version)
+
+**Interfaces:**
+- Consumes: `get_remote_scripts_path`, `is_existing_install`, `install` from `installer/wizard_logic.py` (Task 3 — unchanged, still used identically).
+- No change to `installer/build.bat` (Task 5) — same entry-point filename, same `--add-data` bundling, still applies unmodified.
+
+- [ ] **Step 1: Replace the full file contents**
+
+```python
+"""Next/Done installer GUI for AbletonDiscordPresence. Pure UI wiring —
+all path/copy logic lives in wizard_logic.py so that logic can be tested
+without spinning up tkinter (see wizard_logic.py's __main__).
+
+Dark, Ableton/Discord-adjacent theme: this installer runs next to two
+apps its users keep open in dark mode all day, so a stock light Tk
+window would look out of place."""
+import os
+import sys
+import tkinter as tk
+import webbrowser
+from tkinter import filedialog, messagebox, ttk
+
+from wizard_logic import get_remote_scripts_path, install, is_existing_install
+
+TUTORIAL_URL = 'https://github.com/DA0806/Ableton-Discord-Presence/blob/master/docs/tutorial.md'
+
+BG = '#1E1E1E'
+SURFACE = '#2B2B2B'
+TEXT = '#E8E6E3'
+MUTED = '#9A9A9A'
+ACCENT = '#FF5500'
+
+
+def _bundled_source_dir():
+    """Path to the AbletonDiscordPresence folder to copy — inside the
+    PyInstaller onefile bundle when frozen, next to this script otherwise."""
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, 'AbletonDiscordPresence')
+
+
+class Wizard(tk.Tk):
+    def __init__(self):
+        tk.Tk.__init__(self)
+        self.title('AbletonDiscordPresence Setup')
+        self.geometry('460x300')
+        self.resizable(False, False)
+        self.configure(bg=BG)
+
+        self._init_style()
+
+        self.dest_path = tk.StringVar(value=get_remote_scripts_path())
+        self.open_tutorial = tk.BooleanVar(value=True)
+
+        tk.Frame(self, bg=ACCENT, height=4).pack(fill='x')
+
+        self.body = tk.Frame(self, bg=BG)
+        self.body.pack(fill='both', expand=True, padx=24, pady=20)
+
+        self._render_setup()
+
+    def _init_style(self):
+        style = ttk.Style(self)
+        style.theme_use('clam')
+        style.configure('Dark.TCheckbutton', background=BG, foreground=TEXT)
+        style.map('Dark.TCheckbutton', background=[('active', BG)])
+        style.configure('Primary.TButton', background=ACCENT, foreground=BG,
+                         borderwidth=0, padding=(16, 8), font=('Segoe UI Semibold', 10))
+        style.map('Primary.TButton', background=[('active', '#FF7733')])
+        style.configure('Link.TButton', background=BG, foreground=ACCENT,
+                         borderwidth=0, padding=(0, 0), font=('Segoe UI', 9, 'underline'))
+        style.map('Link.TButton', background=[('active', BG)], foreground=[('active', '#FF7733')])
+
+    def _clear_body(self):
+        for widget in self.body.winfo_children():
+            widget.destroy()
+
+    def _render_setup(self):
+        self._clear_body()
+
+        tk.Label(self.body, text='AbletonDiscordPresence Setup', bg=BG, fg=TEXT,
+                 font=('Segoe UI Semibold', 15)).pack(anchor='w')
+        tk.Label(
+            self.body, bg=BG, fg=MUTED, wraplength=400, justify='left',
+            text=('Installs the Remote Script into your Ableton Live User '
+                  'Library, so your Discord status shows your project, '
+                  'BPM, and scale.'),
+        ).pack(anchor='w', pady=(6, 20))
+
+        tk.Label(self.body, text='INSTALL LOCATION', bg=BG, fg=MUTED,
+                 font=('Segoe UI', 8)).pack(anchor='w')
+
+        readout = tk.Frame(self.body, bg=SURFACE)
+        readout.pack(fill='x', pady=(4, 4))
+        tk.Label(readout, textvariable=self.dest_path, bg=SURFACE, fg=TEXT,
+                 font=('Consolas', 9), anchor='w', padx=10, pady=8).pack(side='left', fill='x', expand=True)
+
+        ttk.Button(self.body, text='Change...', style='Link.TButton',
+                   command=self._browse, cursor='hand2').pack(anchor='w', pady=(0, 24))
+
+        self.action_btn = ttk.Button(self.body, style='Primary.TButton', command=self._install)
+        self._update_action_label()
+        self.action_btn.pack(anchor='e')
+
+    def _update_action_label(self):
+        label = 'Update' if is_existing_install(self.dest_path.get()) else 'Install'
+        self.action_btn.config(text=label)
+
+    def _browse(self):
+        chosen = filedialog.askdirectory(initialdir=self.dest_path.get())
+        if chosen:
+            self.dest_path.set(chosen)
+            self._update_action_label()
+
+    def _install(self):
+        try:
+            install(_bundled_source_dir(), self.dest_path.get())
+        except OSError as exc:
+            messagebox.showerror('Install failed', str(exc))
+            return
+        self._render_done()
+
+    def _render_done(self):
+        self._clear_body()
+
+        tk.Label(self.body, text='✓', bg=BG, fg=ACCENT,
+                 font=('Segoe UI', 28, 'bold')).pack(anchor='w')
+        tk.Label(self.body, text='Done', bg=BG, fg=TEXT,
+                 font=('Segoe UI Semibold', 15)).pack(anchor='w', pady=(4, 6))
+        tk.Label(
+            self.body, bg=BG, fg=MUTED, wraplength=400, justify='left',
+            text=('Restart Ableton Live, then go to Preferences -> Link, '
+                  'Tempo & MIDI and select "AbletonDiscordPresence" in a '
+                  'Control Surface dropdown.'),
+        ).pack(anchor='w', pady=(0, 16))
+
+        ttk.Checkbutton(self.body, text='Open the setup tutorial', variable=self.open_tutorial,
+                        style='Dark.TCheckbutton').pack(anchor='w', pady=(0, 20))
+
+        ttk.Button(self.body, text='Finish', style='Primary.TButton',
+                   command=self._finish).pack(anchor='e')
+
+    def _finish(self):
+        if self.open_tutorial.get():
+            webbrowser.open(TUTORIAL_URL)
+        self.destroy()
+
+
+if __name__ == '__main__':
+    Wizard().mainloop()
+```
+
+- [ ] **Step 2: Verification (same constraints as Task 4 — no interactive display-driving tool available)**
+
+Syntax check: `python -c "import ast; ast.parse(open('installer/setup_wizard.py').read())"`. Import smoke-check from `installer/`: `python -c "import sys; sys.path.insert(0, '.'); import setup_wizard"` (this actually creates a `Tk()` instance at `Wizard()` construction time only if `__main__` runs it — importing the module alone does not instantiate the window, so this smoke-check is safe to run without a mouse). Hand-trace `_render_setup` → `_install` → `_render_done` and confirm there's no path back to `_render_setup` after `_render_done` (matches the intentional no-Back-button design). Real interactive verification (does it actually look right, does Change... open a folder picker, does the accent stripe render) is deferred to a human, same as Task 4/Task 8.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add installer/setup_wizard.py
+git commit -m "Redesign setup wizard: dark theme, collapse to 2 screens"
+```
