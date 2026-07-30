@@ -15,11 +15,11 @@ from wizard_logic import get_remote_scripts_path, install, is_existing_install
 
 TUTORIAL_URL = 'https://github.com/DA0806/Ableton-Discord-Presence/blob/master/docs/tutorial.md'
 
-BG = '#1E1E1E'
-SURFACE = '#2B2B2B'
+BG = '#2a2a2a'
+SURFACE = '#363636'
 TEXT = '#E8E6E3'
 MUTED = '#9A9A9A'
-ACCENT = '#FF5500'
+ACCENT = '#fcaf57'
 
 
 def _bundled_source_dir():
@@ -32,7 +32,7 @@ def _bundled_source_dir():
 class Wizard(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
-        self.title('AbletonDiscordPresence Setup')
+        self.title('Ableton Discord Presence Setup')
         self.geometry('460x300')
         self.resizable(False, False)
         self.configure(bg=BG)
@@ -56,10 +56,10 @@ class Wizard(tk.Tk):
         style.map('Dark.TCheckbutton', background=[('active', BG)])
         style.configure('Primary.TButton', background=ACCENT, foreground=BG,
                          borderwidth=0, padding=(16, 8), font=('Segoe UI Semibold', 10))
-        style.map('Primary.TButton', background=[('active', '#FF7733')])
+        style.map('Primary.TButton', background=[('active', '#fcaf57')])
         style.configure('Link.TButton', background=BG, foreground=ACCENT,
                          borderwidth=0, padding=(0, 0), font=('Segoe UI', 9, 'underline'))
-        style.map('Link.TButton', background=[('active', BG)], foreground=[('active', '#FF7733')])
+        style.map('Link.TButton', background=[('active', BG)], foreground=[('active', '#fcaf57')])
 
     def _clear_body(self):
         for widget in self.body.winfo_children():
@@ -68,7 +68,7 @@ class Wizard(tk.Tk):
     def _render_setup(self):
         self._clear_body()
 
-        tk.Label(self.body, text='AbletonDiscordPresence Setup', bg=BG, fg=TEXT,
+        tk.Label(self.body, text='Ableton Discord Presence Setup', bg=BG, fg=TEXT,
                  font=('Segoe UI Semibold', 15)).pack(anchor='w')
         tk.Label(
             self.body, bg=BG, fg=MUTED, wraplength=400, justify='left',
